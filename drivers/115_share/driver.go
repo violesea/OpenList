@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/OpenListTeam/OpenList/v4/drivers/base"
 	"github.com/OpenListTeam/OpenList/v4/internal/driver"
@@ -145,23 +146,33 @@ func (d *Pan115Share) linkViaTransfer(ctx context.Context, file model.Obj, args 
 	}{}
 
 	listReq := d.client.NewRequest().SetResult(&listResp)
-	_, err = listReq.Get("https://webapi.115.com/files?cid=0&offset=0&limit=50&o=user_id&asc=0&show_dir=0&type=4")
+	// 列出所有最近接收的文件（cid=0 列根目录全部文件）
+	_, err = listReq.Get("https://webapi.115.com/files?cid=0&offset=0&limit=100&o=user_id&asc=0&show_dir=0")
 	if err != nil {
 		return nil, fmt.Errorf("list recent files failed: %w", err)
 	}
 
 	var pickcode string
 	fileName := file.GetName()
+	// 去掉文件扩展名做前缀匹配（转存后可能带 (1) 后缀）
+	namePrefix := fileName
+	if idx := strings.LastIndex(fileName, "."); idx > 0 {
+		namePrefix = fileName[:idx]
+	}
 	for _, f := range listResp.Data {
-		if name, ok := f["n"].(string); ok && name == fileName {
-			if pc, ok := f["pc"].(string); ok {
-				pickcode = pc
-				break
+		if name, ok := f["n"].(string); ok {
+			// 完全匹配 或 前缀匹配（处理 (1) 重复后缀）
+			if name == fileName || strings.HasPrefix(name, namePrefix) {
+				if pc, ok := f["pc"].(string); ok && pc != "" {
+					pickcode = pc
+					log.Infof("[115_share] found transferred file: %s pickcode=%s", name, pickcode)
+					break
+				}
 			}
 		}
 	}
 	if pickcode == "" {
-		return nil, fmt.Errorf("transferred file not found in recent: %s", fileName)
+		return nil, fmt.Errorf("transferred file not found, total %d files checked", len(listResp.Data))
 	}
 
 	// 3. 用 pickcode 获取自有文件下载链接

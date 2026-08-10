@@ -90,19 +90,10 @@ func (d *Pan115Share) Link(ctx context.Context, file model.Obj, args model.LinkA
 	if err := d.WaitLimit(ctx); err != nil {
 		return nil, err
 	}
-	// 始终使用 115Browser UA 获取下载链接，避免 errno 50029（版本过低）
 	ua := fmt.Sprintf("Mozilla/5.0 115Browser/%s", getLatestAppVer())
-	downloadInfo, err := d.client.DownloadByShareCodeWithUA(ua, d.ShareCode, d.ReceiveCode, file.GetID())
-	if err == nil {
-		header := http.Header{}
-		header.Set("User-Agent", ua)
-		return &model.Link{
-			URL:    downloadInfo.URL.URL,
-			Header: header,
-		}, nil
-	}
-	// 如果分享下载失败（50029 等），自动转存到网盘后走自有文件下载
-	log.Infof("[115_share] share download failed (%v), trying auto-transfer...", err)
+	// 分享下载被 115 限制（errno 50029），直接走自动转存路径
+	// 转存到网盘后用自有文件 API 下载（不受 50029 限制）
+	log.Infof("[115_share] link via auto-transfer: %s", file.GetName())
 	return d.linkViaTransfer(ctx, file, args, ua)
 }
 

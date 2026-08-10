@@ -5,7 +5,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/OpenListTeam/OpenList/v4/drivers/base"
 	"github.com/OpenListTeam/OpenList/v4/internal/model"
 	"github.com/OpenListTeam/OpenList/v4/pkg/utils"
 	driver115 "github.com/SheltonZhu/115driver/pkg/driver"
@@ -84,10 +83,28 @@ func transFunc(sf driver115.ShareFile) (model.Obj, error) {
 	}, nil
 }
 
+// getLatestAppVer 从 115 API 动态获取最新 Windows 客户端版本号，失败回退到 36.0.0
+func getLatestAppVer() string {
+	fallback := "36.0.0"
+	client := driver115.New()
+	versions, err := client.GetAppVersion()
+	if err != nil || len(versions) == 0 {
+		return fallback
+	}
+	for _, v := range versions {
+		if v.AppName == "win" && v.Version != "" {
+			return v.Version
+		}
+	}
+	return fallback
+}
+
 func (d *Pan115Share) login() error {
 	var err error
+	// 使用 115Browser UA（带最新版本号），避免下载时被 115 判定"版本过低"(errno 50029)
+	ua := fmt.Sprintf("Mozilla/5.0 115Browser/%s", getLatestAppVer())
 	opts := []driver115.Option{
-		driver115.UA(base.UserAgentNT),
+		driver115.UA(ua),
 	}
 	d.client = driver115.New(opts...)
 	if _, err := d.client.GetShareSnap(d.ShareCode, d.ReceiveCode, ""); err != nil {

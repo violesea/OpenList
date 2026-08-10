@@ -10,7 +10,7 @@ import (
 
 var (
 	md5Salt = "Qclm8MGWUv59TnrR0XPg"
-	appVer  = "35.6.0.3"
+	appVer  = "36.0.0"
 )
 
 func (d *Pan115) getAppVersion() (string, error) {

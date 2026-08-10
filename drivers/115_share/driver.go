@@ -2,6 +2,7 @@ package _115_share
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 
 	"github.com/OpenListTeam/OpenList/v4/drivers/base"
@@ -86,10 +87,8 @@ func (d *Pan115Share) Link(ctx context.Context, file model.Obj, args model.LinkA
 	if err := d.WaitLimit(ctx); err != nil {
 		return nil, err
 	}
-	var ua string
-	if args.Header != nil {
-		ua = args.Header.Get("User-Agent")
-	}
+	// 始终使用 115Browser UA 获取下载链接，避免 errno 50029（版本过低）
+	ua := fmt.Sprintf("Mozilla/5.0 115Browser/%s", getLatestAppVer())
 	downloadInfo, err := d.client.DownloadByShareCodeWithUA(ua, d.ShareCode, d.ReceiveCode, file.GetID())
 	if err != nil {
 		return nil, err

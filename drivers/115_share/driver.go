@@ -173,7 +173,7 @@ func (d *Pan115Share) linkViaTransfer(ctx context.Context, file model.Obj, args 
 	header := http.Header{}
 	header.Set("User-Agent", ua)
 	return &model.Link{
-		URL:    downloadInfo.URL.URL,
+		URL:    downloadInfo.Url.URL,
 		Header: header,
 	}, nil
 }
